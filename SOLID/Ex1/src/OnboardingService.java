@@ -16,11 +16,10 @@ public class OnboardingService {
         this.printer = new Printer();
     }
 
-    // Intentionally violates SRP: parses + validates + creates ID + saves + prints.
     public void registerFromRawInput(String raw) {
         printer.printInput(raw);
 
-        ParsedData data = parser.parse(raw);
+        Map<String, String> data = parser.parse(raw);
 
         List<String> errors = validator.validate(data);
         if(!errors.isEmpty()) {
@@ -29,7 +28,7 @@ public class OnboardingService {
         }
 
         String id = IdUtil.nextStudentId(repository.count());
-        StudentRecord rec = new StudentRecord(id, data.name, data.email, data.phone, data.program);
+        StudentRecord rec = new StudentRecord(id, data.get("name"), data.get("email"), data.get("phone"), data.get("program"));
 
         repository.save(rec);
 

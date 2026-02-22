@@ -1,17 +1,19 @@
 import java.util.*;
 
 public class StudentValidator {
-    public List<String> validate(ParsedData data) {
+    public List<String> validate(Map<String, String> kv) {
         List<String> errors = new ArrayList<>();
 
-        if (data.name.isBlank()) errors.add("name is required");
+        String name = kv.getOrDefault("name", "");
+        String email = kv.getOrDefault("email", "");
+        String phone = kv.getOrDefault("phone", "");
+        String program = kv.getOrDefault("program", "");
 
-        if (data.email.isBlank() || !data.email.contains("@")) errors.add("email is invalid");
-
-        if (data.phone.isBlank() || !data.phone.chars().allMatch(Character::isDigit)) errors.add("phone is invalid");
-
-        if (!(data.program.equals("CSE") || data.program.equals("AI") || data.program.equals("SWE"))) errors.add("program is invalid");
-
+        if (name.isBlank()) errors.add("name is required");
+        if (email.isBlank() || !email.contains("@")) errors.add("email is invalid");
+        if (phone.isBlank() || !phone.chars().allMatch(Character::isDigit)) errors.add("phone is invalid");
+        if (!(program.equals("CSE") || program.equals("AI") || program.equals("SWE"))) errors.add("program is invalid");
+        
         return errors;
     }
 }

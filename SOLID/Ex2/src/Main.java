@@ -14,6 +14,10 @@ public class Main {
                 new OrderLine("C1", 1)
         );
 
-        sys.checkout("student", order);
+        TaxPolicy tax = new StudentTaxPolicy();
+        DiscountPolicy discount = new StudentDiscountPolicy();
+        InvoiceRepository store = new FileStore();
+
+        sys.checkout(tax, discount, store, order);
     }
 }
