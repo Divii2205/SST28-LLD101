@@ -4,7 +4,7 @@ public class EmailSender extends NotificationSender {
     public EmailSender(AuditLog audit) { super(audit); }
 
     @Override
-    public void send(Notification n) {
+    public SendResult send(Notification n) {
         // LSP smell: truncates silently, changing meaning
         String body = n.body;
         if (body.length() > MAX_BODY_LENGTH) body = body.substring(0, MAX_BODY_LENGTH);
