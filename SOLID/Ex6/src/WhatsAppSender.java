@@ -3,7 +3,6 @@ public class WhatsAppSender extends NotificationSender {
 
     @Override
     public SendResult send(Notification n) {
-        // LSP violation: tightens precondition
         if (n.phone == null || !n.phone.startsWith("+")) {
             audit.add("WA failed");
             return SendResult.fail("phone must start with + and country code");

@@ -1,5 +1,3 @@
-import java.util.*;
-
 public class DefaultDiscountPolicy implements DiscountPolicy {
 
     @Override

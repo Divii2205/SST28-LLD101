@@ -12,9 +12,7 @@ public class PriceService {
         double subtotal = 0.0;
 
         for (OrderLine l : lines) {
-            MenuItem item = menu.get(l.itemId);
-            double lineTotal = item.price * l.qty;
-            subtotal += lineTotal;
+            subtotal += calculateLineTotal(l);
         }
 
         return subtotal;
@@ -23,9 +21,5 @@ public class PriceService {
     public double calculateLineTotal(OrderLine line){
         MenuItem item = menu.get(line.itemId);
         return item.price * line.qty;
-    }
-
-    public MenuItem getItem(String itemId) {
-        return menu.get(itemId);
     }
 }
