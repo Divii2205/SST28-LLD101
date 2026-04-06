@@ -6,44 +6,52 @@ public class Main {
     public static void main(String[] args) throws InterruptedException {
         System.out.println("========== RATE LIMITER SYSTEM INITIALIZATION ==========");
         
-        // Setup Strategy: We only allow 5 requests every 1000 milliseconds (1 second)
+        // Scenario: We only allow 5 requests every 1000 milliseconds (1 second) per client.
         RateLimitingStrategy slidingWindow = new SlidingWindowStrategy(5, 1000);
+        RateLimitingStrategy fixedWindow = new FixedWindowStrategy(5, 1000);
         
         RemoteResource realBillingApi = new ExternalApiService();
         
-        // Setup Proxy (Wraps the real API with the boundary strategy)
+        // 1. Setup Proxy with the Sliding Window algorithm.
         RemoteResource rateLimiterProxy = new RateLimitingProxy(realBillingApi, slidingWindow);
-        
-        // Setup Orchestrator (The orchestrator only knows about the interface, perfectly abstracted!)
         Orchestrator orchestrator = new Orchestrator(rateLimiterProxy);
 
-        System.out.println("\n========== TEST: CONSTANT CONCURRENT ABUSE ==========");
+        System.out.println("\n========== TEST 1: PER-USER LIMITS (SLIDING WINDOW) ==========");
+        System.out.println("Scenario: Client_A and Client_B both rapidly fire 7 requests.");
+        System.out.println("Expected: They both get 5 successes individually, and 2 rejections each.");
+        System.out.println("----------------------------------------------------");
         
-        // Spawning 15 parallel users all attempting to hammer the endpoint at once
+        // Spawning parallel threads hammering the system under two different user identities
         ExecutorService executor = Executors.newFixedThreadPool(15);
-        for (int i = 1; i <= 15; i++) {
-            final int id = i;
+        for (int i = 1; i <= 7; i++) {
             executor.submit(() -> {
-                Request myReq = new Request("Client_" + id, "UserData");
-                String response = orchestrator.routeRequest(myReq);
-                System.out.println("Client_" + id + " Response -> " + response);
+                System.out.println("Client_A -> " + orchestrator.routeRequest(new Request("Client_A", "DataA")));
+            });
+            executor.submit(() -> {
+                System.out.println("Client_B -> " + orchestrator.routeRequest(new Request("Client_B", "DataB")));
             });
         }
         
-        // Giving the threads a moment to finish firing
         executor.shutdown();
         executor.awaitTermination(2, TimeUnit.SECONDS);
 
-        System.out.println("\n========== TEST: ROLLING WINDOW REFRESH ==========");
-        System.out.println("Waiting for the 1-second limit sliding window to expire...");
+        System.out.println("\n========== TEST 2: SWITCHING ALGORITHMS (FIXED WINDOW) ==========");
+        System.out.println("Swapping to the FixedWindowStrategy behind the scenes...");
+        
+        // Easily swapping algorithms by plugging the new strategy into a new proxy.
+        // Notice how Orchestrator doesn't have to change anything about how it works!
+        RemoteResource newProxy = new RateLimitingProxy(realBillingApi, fixedWindow);
+        Orchestrator orchestratorFixed = new Orchestrator(newProxy);
+
+        System.out.println("\nWaiting for 1 second so old times naturally clear...");
         Thread.sleep(1000); 
 
-        // Let's send exactly 3 requests (Should succeed natively since limit of 5 is theoretically cleared by the time slip)
-        System.out.println("\nSending 3 new requests post-expiration:");
-        for (int i = 16; i <= 18; i++) {
-            Request freshReq = new Request("Client_" + i, "PostWaitData");
-            String response = orchestrator.routeRequest(freshReq);
-            System.out.println("Client_" + i + " Response -> " + response);
+        System.out.println("\nTesting Client_A again rapidly on the NEW fixed window algorithm:");
+        System.out.println("Expected: 5 successes, then failures.");
+        System.out.println("----------------------------------------------------");
+
+        for (int i = 1; i <= 7; i++) {
+            System.out.println("Client_A (Fixed) -> " + orchestratorFixed.routeRequest(new Request("Client_A", "FreshData")));
         }
     }
 }

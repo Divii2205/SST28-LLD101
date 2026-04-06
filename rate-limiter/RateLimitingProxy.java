@@ -20,13 +20,16 @@ public class RateLimitingProxy implements RemoteResource {
 
     @Override
     public String fetchData(Request request) {
-        // The Proxy intercepts the call. It performs its security/limiting check here.
-        if (limiterStrategy.allowRequest()) {
+        // Figure out who is making the request out of the payload.
+        String clientKey = request.getClientId();
+
+        // The Proxy intercepts the call and asks the strategy if THIS specific user is allowed.
+        if (limiterStrategy.allowRequest(clientKey)) {
             // If passed, it delegates the method call entirely to the real subject.
             return realSubject.fetchData(request);
         } else {
             // If blocked, the Proxy aborts the request before it ever reaches the real target.
-            return "HTTP 429: Too many requests";
+            return "HTTP 429: Too many requests for client: " + clientKey;
         }
     }
 }

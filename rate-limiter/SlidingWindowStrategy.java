@@ -1,37 +1,46 @@
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
 
 public class SlidingWindowStrategy implements RateLimitingStrategy {
     private int maxRequests;
     private long windowSizeInMillis;
-    // The data structure maintaining the history of request timestamps
-    private Queue<Long> requestTimestamps;
+    
+    // We use a map to keep a separate history queue for each unique user/key.
+    // ConcurrentHashMap safely handles multiple threads creating new users at once.
+    private Map<String, Queue<Long>> clientTimestamps;
 
     public SlidingWindowStrategy(int maxRequests, long windowSizeInMillis) {
         this.maxRequests = maxRequests;
         this.windowSizeInMillis = windowSizeInMillis;
-        this.requestTimestamps = new LinkedList<>();
+        this.clientTimestamps = new ConcurrentHashMap<>();
     }
 
     @Override
-    public synchronized boolean allowRequest() {
+    public boolean allowRequest(String key) {
         long currentTime = System.currentTimeMillis();
 
-        // 1. Evict timestamps that are outside the sliding window.
-        // If a request was made exactly 1 minute ago, and our window is 1 minute,
-        // it is obsolete and doesn't count against our current threshold.
-        while (!requestTimestamps.isEmpty() && currentTime - requestTimestamps.peek() > windowSizeInMillis) {
-            requestTimestamps.poll(); 
-        }
+        // Get the history queue for this specific user. 
+        // If they don't exist yet, create a new empty queue for them.
+        Queue<Long> userQueue = clientTimestamps.computeIfAbsent(key, k -> new LinkedList<>());
 
-        // 2. Check if the queue size exceeds our limit
-        if (requestTimestamps.size() < maxRequests) {
-            // We have capacity. Push the new timestamp and allow the request.
-            requestTimestamps.add(currentTime);
-            return true;
-        }
+        // We lock ONLY this specific user's queue so other users checking limits aren't frozen out.
+        synchronized (userQueue) {
+            // 1. Throw away any old timestamps that fall outside our current time window.
+            while (!userQueue.isEmpty() && currentTime - userQueue.peek() > windowSizeInMillis) {
+                userQueue.poll(); 
+            }
 
-        // We hit the limit
-        return false;
+            // 2. Check if this user still has room in their personal queue.
+            if (userQueue.size() < maxRequests) {
+                // They have space. Add the current time and allow it.
+                userQueue.add(currentTime);
+                return true;
+            }
+
+            // No space left in the limits for this specific user.
+            return false;
+        }
     }
 }

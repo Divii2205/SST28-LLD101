@@ -4,5 +4,6 @@
  * you don't need to touch the existing RequestHandlerService logic at all.
  */
 public interface RateLimitingStrategy {
-    boolean allowRequest();
+    // We pass a 'key' (like client ID or API key) so each user has their own limits.
+    boolean allowRequest(String key);
 }
